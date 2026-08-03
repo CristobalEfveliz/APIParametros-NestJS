@@ -1,0 +1,60 @@
+{
+  "name": "@andestec/api-parametros",
+  "version": "1.0.0",
+  "description": "API Parámetros (NestJS) con persistencia sobre Redis (@andestec/persistencia-redis) y autenticación vía @andestec/api-dispositivos. Librería de servicios inyectables, sin controladores HTTP.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prepare": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CristobalEfveliz/APIParametros-NestJS.git"
+  },
+  "homepage": "https://github.com/CristobalEfveliz/APIParametros-NestJS#readme",
+  "bugs": {
+    "url": "https://github.com/CristobalEfveliz/APIParametros-NestJS/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@andestec/persistencia-redis": "git+https://github.com/CristobalEfveliz/persistencia-redis.git#main",
+    "@andestec/api-dispositivos": "git+https://github.com/CristobalEfveliz/APIDispositivo-NestJS.git#main"
+  },
+  "peerDependencies": {
+    "@nestjs/axios": "^3.0.0 || ^4.0.0",
+    "@nestjs/common": "^10.0.0 || ^11.0.0",
+    "@nestjs/config": "^3.0.0 || ^4.0.0",
+    "@nestjs/core": "^10.0.0 || ^11.0.0",
+    "axios": "^1.0.0",
+    "reflect-metadata": "^0.1.13 || ^0.2.0",
+    "rxjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@nestjs/axios": "^4.0.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@types/node": "^20.14.0",
+    "axios": "^1.7.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "typescript": "^5.5.0"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}
