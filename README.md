@@ -32,12 +32,62 @@ cachea en Redis indexado por el contexto completo `contextId(App, EmpKey, Alcanc
 
 ## Instalación
 
+Se instala como dependencia, igual que las otras APIs. Desde git:
+
 ```bash
-npm install
-npm run build
+npm install git+https://github.com/CristobalEfveliz/APIParametros-NestJS.git#main
 ```
 
+El paquete compila su `dist/` automáticamente al instalarse (script `prepare`).
 Requiere un Redis accesible y las variables de entorno (ver [`.env.example`](.env.example)).
+
+`@andestec/persistencia-redis` y `@andestec/api-dispositivos` viajan como
+dependencias directas de este paquete.
+
+### Peer dependencies
+
+El proyecto consumidor debe proveer (npm 7+ las instala automáticamente):
+
+```
+@nestjs/common  @nestjs/core  @nestjs/config  @nestjs/axios
+axios  rxjs  reflect-metadata
+```
+
+### Resolución de tipos (importante)
+
+Los tipos exportados referencian el subpath `@andestec/persistencia-redis/nestjs`
+(campo `exports` de su `package.json`). Para que TypeScript lo resuelva, el
+`tsconfig.json` del consumidor debe usar una resolución de módulos moderna:
+
+```jsonc
+{
+  "compilerOptions": {
+    "moduleResolution": "node16" // o "nodenext" / "bundler"
+  }
+}
+```
+
+Si el proyecto está fijado en `"moduleResolution": "node"` (clásico), añade los
+mapeos `paths` equivalentes:
+
+```jsonc
+{
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "@andestec/persistencia-redis": [
+        "./node_modules/@andestec/persistencia-redis/dist/index.d.ts"
+      ],
+      "@andestec/persistencia-redis/nestjs": [
+        "./node_modules/@andestec/persistencia-redis/dist/nestjs/index.d.ts"
+      ],
+      "@andestec/api-dispositivos": [
+        "./node_modules/@andestec/api-dispositivos/dist/index.d.ts"
+      ]
+    }
+  }
+}
+```
 
 ## Uso
 
