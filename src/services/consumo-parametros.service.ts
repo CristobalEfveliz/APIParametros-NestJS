@@ -31,9 +31,24 @@ export class ConsumoParametrosService {
     private readonly token: TokenService,
   ) {}
 
-  /** Base COMPLETA del servicio, sin barra final. */
+  /** `true` si PARAM_API_SECURE indica conexión segura (1/true). */
+  private esSeguro(): boolean {
+    const v = String(this.config.get('PARAM_API_SECURE') ?? '').trim().toLowerCase();
+    return v === '1' || v === 'true';
+  }
+
+  /**
+   * Base del servicio, construida a partir de host/puerto/base/secure (igual que
+   * ADMIN_DISP_* en api-dispositivos). Sin barra final. Los endpoints se anexan
+   * como `${baseUrl()}/GetParametrosValues`.
+   */
   private baseUrl(): string {
-    return String(this.config.get('PARAM_API_BASEURL') ?? '').replace(/\/+$/, '');
+    const proto = this.esSeguro() ? 'https' : 'http';
+    const host = String(this.config.get('PARAM_API_HOST') ?? '').trim();
+    const puerto = String(this.config.get('PARAM_API_PORT') ?? '').trim();
+    const base = String(this.config.get('PARAM_API_BASEURL') ?? '').trim();
+    const puertoParte = puerto ? `:${puerto}` : '';
+    return `${proto}://${host}${puertoParte}${base}`.replace(/\/+$/, '');
   }
 
   private timeoutMs(): number {
