@@ -104,6 +104,30 @@ describe('GetParametro — valores compuestos y sufijo', () => {
     const { svc } = await setup();
     expect(await svc.GetParametro('PI_TipoDefault_4', { aplicacionId: APP, empKey: 123 })).toBe('');
   });
+
+  test('sufijo por NOMBRE de componente (estructura Location) resuelve por posición', async () => {
+    const { svc, fake } = crear();
+    // Definición tipo Location: estructura por TipoParametroID, separador ";" al inicio/fin.
+    await fake.set(
+      REPO,
+      tagDefinicion('MiLoc'),
+      definicion('MiLoc', { TipoParametroID: 'Location', Separador: ';', TipoParametroSeparadorInicioFin: true }),
+    );
+    await fake.set(REPO, 'EstructuraLocation', {
+      ParametroEstructuraId: 'Location',
+      Componente: ['Host', 'Puerto', 'BaseURL', 'TimeOut', 'Secure', 'LocationName'].map((id) => ({
+        ParametroEstructuraComponenteId: id,
+      })),
+    });
+    await fake.set(REPO, contextId(APP, 1, 'A'), [valor('MiLoc', ';miHost;443;/base;30;1;nombre')]);
+
+    const ctx = { aplicacionId: APP, empKey: 1, alcanceId: 'A' };
+    expect(await svc.GetParametro('MiLoc_Host', ctx)).toBe('miHost');
+    expect(await svc.GetParametro('MiLoc_Puerto', ctx)).toBe('443');
+    expect(await svc.GetParametro('MiLoc_BaseURL', ctx)).toBe('/base');
+    expect(await svc.GetParametro('MiLoc_LocationName', ctx)).toBe('nombre');
+    expect(await svc.GetParametro('MiLoc_NoExiste', ctx)).toBe(''); // componente inexistente
+  });
 });
 
 describe('Caché en proceso (miss)', () => {

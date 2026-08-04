@@ -139,7 +139,7 @@ export class ParametrosService {
 
     // 6) Si hay sufijo, extraer el componente del valor compuesto.
     if (sufijo) {
-      return this.obtenerValorxIndice(valor, sufijo, base, def);
+      return this.obtenerValorxIndice(valor, sufijo, def);
     }
     return valor;
   }
@@ -415,51 +415,56 @@ export class ParametrosService {
   }
 
   /**
-   * Extrae un componente de un valor compuesto usando el `Separador` de la definición.
-   * El sufijo puede ser numérico (índice 1-based) o el id de un componente de la
-   * Estructura (se resuelve su `Orden`).
+   * Extrae un componente de un valor compuesto (equivalente a `obtenerValorxIndice`).
+   * El sufijo puede ser:
+   *  - el id de un componente de la Estructura (por NOMBRE), o
+   *  - un índice numérico 1-based (conveniencia; el KB solo soporta por nombre).
    *
-   * TODO: confirmar cómo se mapea un parámetro a su EstructuraId (aquí se prueba
-   * `Estructura{base}` como mejor conjetura) y si el índice es 1-based.
+   * La Estructura se busca por `TipoParametroID` (getparametroestructura del KB:
+   * `Estructura{TipoParametroID}`), y la posición lógica del componente es su lugar
+   * en la lista. El valor se parte LITERALMENTE por el separador; si el separador va
+   * al inicio/fin (`TipoParametroSeparadorInicioFin`) el primer elemento del split es
+   * vacío, así que se aplica un offset de +1 (corrige el bug del KB, que descartaba
+   * ese ajuste, y coincide con el comportamiento validado del índice numérico).
    */
   private async obtenerValorxIndice(
     valor: string,
     sufijo: string,
-    base: string,
     def: ParametroDefinicion,
   ): Promise<string> {
     const sep = def.Separador ?? '';
     if (!sep) {
-      this.logger.warn(`obtenerValorxIndice: parámetro "${base}" sin Separador`);
-      return valor;
+      this.logger.warn(`obtenerValorxIndice: "${def.ParametroId}" sin Separador`);
+      return '';
     }
 
-    // Si el separador se concatena al inicio/fin, quitarlo antes de partir.
-    let crudo = valor;
-    if (def.TipoParametroSeparadorInicioFin) {
-      if (crudo.startsWith(sep)) crudo = crudo.slice(sep.length);
-      if (crudo.endsWith(sep)) crudo = crudo.slice(0, -sep.length);
-    }
-    const partes = crudo.split(sep);
-
-    // Resolver el índice (1-based) del componente.
-    let orden: number | null = null;
+    // Posición lógica (1-based) del componente pedido.
+    let posLogica: number | null = null;
     if (/^\d+$/.test(sufijo)) {
-      orden = parseInt(sufijo, 10);
+      posLogica = parseInt(sufijo, 10);
     } else {
       const est = await this.persistencia.get<ParametroEstructura>(
         REPOSITORIO_PARAMETROS,
-        tagEstructura(base),
+        tagEstructura(def.TipoParametroID ?? ''),
       );
-      const comp = est?.Componente?.find((c) => c.ParametroEstructuraComponenteId === sufijo);
-      orden = comp?.ParametroEstructuraComponenteOrden ?? null;
+      const idx = (est?.Componente ?? []).findIndex(
+        (c) => c.ParametroEstructuraComponenteId === sufijo,
+      );
+      posLogica = idx >= 0 ? idx + 1 : null;
     }
-
-    if (orden === null || orden < 1 || orden > partes.length) {
-      this.logger.warn(`obtenerValorxIndice: sufijo "${sufijo}" fuera de rango en "${base}"`);
+    if (posLogica === null || posLogica < 1) {
+      this.logger.warn(`obtenerValorxIndice: sufijo "${sufijo}" no está en la estructura de "${def.ParametroId}"`);
       return '';
     }
-    return partes[orden - 1];
+
+    // Split literal + offset por separador al inicio.
+    const partes = valor.split(sep);
+    const idxDato = posLogica + (def.TipoParametroSeparadorInicioFin ? 1 : 0);
+    if (idxDato < 1 || idxDato > partes.length) {
+      this.logger.warn(`obtenerValorxIndice: posición ${posLogica} fuera de rango en "${def.ParametroId}"`);
+      return '';
+    }
+    return partes[idxDato - 1];
   }
 
   // ================================ Vigencia / notificación ================================

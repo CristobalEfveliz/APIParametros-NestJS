@@ -41,8 +41,10 @@ npm install git+https://github.com/CristobalEfveliz/APIParametros-NestJS.git#mai
 El paquete compila su `dist/` automáticamente al instalarse (script `prepare`).
 Requiere un Redis accesible y las variables de entorno (ver [`.env.example`](.env.example)).
 
-`@andestec/persistencia-redis` y `@andestec/api-dispositivos` viajan como
-dependencias directas de este paquete.
+**Requisitos estrictos incluidos automáticamente:** `@andestec/persistencia-redis` y
+`@andestec/api-dispositivos` son **dependencias directas** de este paquete, así que al
+instalarlo se integran solas — no hay que instalarlas por separado. La primera aporta la
+caché en Redis; la segunda, la identidad del dispositivo, el token (`ApiKey`) y el ambiente.
 
 ### Peer dependencies
 
@@ -91,6 +93,8 @@ mapeos `paths` equivalentes:
 
 ## Uso
 
+Importa el módulo una vez:
+
 ```ts
 import { Module } from '@nestjs/common';
 import { ParametrosModule } from '@andestec/api-parametros';
@@ -99,37 +103,55 @@ import { ParametrosModule } from '@andestec/api-parametros';
 export class AppModule {}
 ```
 
+### Flujo: primero `Inicializa*`, luego `GetParametro`
+
+Son **dos pasos** claramente separados:
+
+1. **Al iniciar sesión en la aplicación**, llama a una primitiva `Inicializa*`. Estas
+   consultan el backend y **pueblan la persistencia (Redis)** con las definiciones,
+   estructuras y valores del contexto. Se llaman una vez por sesión (y se refrescan
+   solas según la vigencia o una notificación).
+
+   ```ts
+   // Alcance de negocio (empresa/alcance provisto por el llamador):
+   await this.parametros.InicializaParametrosNegocio('MiApp', 123, 'ALC-01', 'WebApp');
+   // Alcance de dispositivo (el alcance = id del dispositivo):
+   await this.parametros.InicializaParametrosDispositivo('MiApp', 123, 'WebApp');
+   ```
+
+2. **Durante el uso de la aplicación**, `GetParametro` **lee desde la persistencia**
+   (no pega al backend): es rápido y funciona aunque el backend esté caído.
+
+   ```ts
+   const valor = await this.parametros.GetParametro('MI_PARAMETRO', {
+     aplicacionId: 'MiApp',
+     empKey: 123,
+     alcanceId: 'ALC-01',
+   });
+
+   // Valor compuesto: sufijo por NOMBRE de componente…
+   const host = await this.parametros.GetParametro('MI_LOCATION_Host', { empKey: 123 });
+   // …o por índice 1-based:
+   const c2 = await this.parametros.GetParametro('MI_PARAM_2', { empKey: 123 });
+   ```
+
+> Si no se llamó a `Inicializa*` para ese contexto, `GetParametro` devuelve `""`
+> (no hay nada en la persistencia todavía).
+
+Opcional — forzar refresco desde un webhook al recibir un push del servidor central:
+
 ```ts
-import { ParametrosService } from '@andestec/api-parametros';
-
-constructor(private readonly parametros: ParametrosService) {}
-
-// Refrescar (baja definición + estructuras + valores a Redis si toca)
-await this.parametros.InicializaParametrosNegocio('MiApp', 123, 'ALC-01', '');
-await this.parametros.InicializaParametrosDispositivo('MiApp', 123, '');
-
-// Leer un valor
-const valor = await this.parametros.GetParametro('MI_PARAMETRO', {
-  aplicacionId: 'MiApp',
-  empKey: 123,
-  alcanceId: 'ALC-01',
-});
-
-// Valor compuesto: sufijo por índice (1-based)
-const componente = await this.parametros.GetParametro('MI_PARAM_2', { empKey: 123 });
-
-// Forzar refresco desde un webhook (invalidación por notificación push)
 await this.parametros.notificarRefresco('MiApp', 123, dispositivoId);
 ```
 
 ## API pública (`ParametrosService`)
 
-| Método | Descripción |
-|---|---|
-| `GetParametro(parametroId, contexto)` | Lee el valor vigente. Resuelve alcance por `TipoDefinicionId` (`Neg`→negocio, `Disp`→dispositivo). Soporta sufijo compuesto `base_indice`. |
-| `InicializaParametrosDispositivo(appId, empKey, modo)` | Refresca los parámetros con alcance = id del dispositivo. |
-| `InicializaParametrosNegocio(appId, empKey, alcanceId, modo)` | Refresca los parámetros con alcance de negocio provisto. |
-| `notificarRefresco(appId, empKey, alcanceId)` | Marca un scope para refresco (lo llama el host al recibir un push del servidor central). |
+| Método | Cuándo | Descripción |
+|---|---|---|
+| `InicializaParametrosNegocio(appId, empKey, alcanceId, modo)` | al iniciar sesión | Puebla/refresca la persistencia con alcance de negocio provisto. |
+| `InicializaParametrosDispositivo(appId, empKey, modo)` | al iniciar sesión | Puebla/refresca la persistencia con alcance = id del dispositivo. |
+| `GetParametro(parametroId, contexto)` | durante el uso | Lee el valor vigente **desde la persistencia**. Resuelve alcance por `TipoDefinicionId` (`Neg`→negocio, `Disp`→dispositivo). Sufijo compuesto `base_componente` (por nombre) o `base_indice`. |
+| `notificarRefresco(appId, empKey, alcanceId)` | webhook (opcional) | Marca un scope para refresco en el próximo `Inicializa*`. |
 
 `GetParametro` recibe un **contexto explícito** `{ aplicacionId, empKey, alcanceId, ambienteId, modo }`
 (los campos omitidos toman defaults del entorno). No usa estado global mutable.
@@ -205,9 +227,9 @@ refresco, invalidación por notificación y circuit-breaker. Los scripts de `scr
 ## Estado / pendientes
 
 Portadas y validadas contra backend real: `GetParametro`, `InicializaParametros*`,
-jerarquía, valores compuestos por índice, ambiente, auth, caché de miss, notificación push
-y circuit-breaker. Pendiente: sufijo compuesto por **nombre** de componente (vía Estructura)
-y operaciones de escritura (`SetParametrosValues`, réplicas).
+jerarquía, valores compuestos por **nombre** e índice, ambiente, auth, caché de miss,
+notificación push y circuit-breaker. Pendiente (opcional): operaciones de escritura
+(`SetParametrosValues`, réplicas).
 
 ## Licencia
 
