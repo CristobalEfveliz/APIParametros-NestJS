@@ -189,12 +189,25 @@ En `scripts/` (requieren `.env` y Redis):
 | `test-notificacion.js` | Invalidación por notificación push |
 | `test-breaker.js` | Circuit-breaker offline |
 
+## Tests
+
+Tests unitarios con Jest y dependencias mockeadas (no requieren backend ni Redis):
+
+```bash
+npm test
+```
+
+Cubren resolución de alcance/jerarquía, ventana de vigencia (incluido el centinela
+`0000-00-00`), valores compuestos, caché de miss (positiva y negativa), condiciones de
+refresco, invalidación por notificación y circuit-breaker. Los scripts de `scripts/`
+(que sí pegan al backend real) sirven para pruebas de integración manuales.
+
 ## Estado / pendientes
 
 Portadas y validadas contra backend real: `GetParametro`, `InicializaParametros*`,
 jerarquía, valores compuestos por índice, ambiente, auth, caché de miss, notificación push
-y circuit-breaker. Pendiente: sufijo compuesto por **nombre** de componente (vía Estructura),
-operaciones de escritura (`SetParametrosValues`, réplicas) y tests automatizados.
+y circuit-breaker. Pendiente: sufijo compuesto por **nombre** de componente (vía Estructura)
+y operaciones de escritura (`SetParametrosValues`, réplicas).
 
 ## Licencia
 
